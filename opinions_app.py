@@ -11,6 +11,9 @@ from flask_wtf import FlaskForm
 from wtforms import StringField, SubmitField, TextAreaField, URLField
 from wtforms.validators import DataRequired, Length, Optional
 
+import csv
+import click
+
 
 app = Flask(__name__)
 
@@ -85,15 +88,33 @@ def opinion_view(id):
 
 @app.errorhandler(404)
 def page_not_found(error):
-    # В качестве ответа возвращается собственный шаблон 
-    # и код ошибки
     return render_template('404.html'), 404
 
 @app.errorhandler(500)
 def internal_error(error):
-    # В таких случаях можно откатить незафиксированные изменения в БД
     db.session.rollback()
     return render_template('500.html'), 500
+
+
+@app.cli.command('load_opinions')
+def load_opinions_command():
+    """Функция загрузки мнений в базу данных."""
+    # Открывается файл
+    with open('opinions.csv', encoding='utf-8') as f:
+        # Создаётся итерируемый объект, который отображает каждую строку
+        # в качестве словаря с ключами из шапки файла
+        reader = csv.DictReader(f)
+        # Для подсчёта строк добавляется счётчик
+        counter = 0
+        for row in reader:
+            # Распакованный словарь можно использовать 
+            # для создания объекта мнения
+            opinion = Opinion(**row)
+            # Изменения нужно зафиксировать
+            db.session.add(opinion)
+            db.session.commit()
+            counter += 1
+    click.echo(f'Загружено мнений: {counter}') 
 
 
 if __name__ == '__main__':
